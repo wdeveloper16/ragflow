@@ -74,7 +74,7 @@ dependencies = [
     "opencv-python-headless==4.10.0.84",
     "opendal>=0.45.0,<0.46.0",
     "opensearch-py==2.7.1",
-    "ormsgpack==1.5.0",
+    "ormsgpack>=1.5.0",
     "pdfplumber==0.10.4",
     "pluginlib>=0.10.0",
     "psycopg2-binary>=2.9.11,<3.0.0",
@@ -178,7 +178,6 @@ test = [
     "pycryptodomex==3.20.0",
     "pytest-playwright>=0.7.2",
     "codecov>=2.1.13",
-    "tensorflow-cpu>=2.17.0",
 ]
 
 [tool.uv]
@@ -186,12 +185,27 @@ constraint-dependencies = [
     # CVE-2026-30922: Denial of Service via unbounded recursion in ASN.1 decoding (CVSS 7.5 HIGH)
     # pyasn1 < 0.6.3 is vulnerable; pulled in transitively via google-auth / rsa / pyasn1-modules
     "pyasn1>=0.6.3",
+    # Python 3.13: pathlib.Path.parser became a module (not callable); trio<0.26 crashes on import
+    # pulled in transitively via selenium-wire -> trio-websocket -> trio
+    "trio>=0.26.0",
 ]
-# Allow uv to select the best available wheel across all configured indexes.
-# Required because tensorflow-cpu cp313 wheels are on PyPI but not yet on the
-# Aliyun mirror; without this, uv stops at the first index that lists the package.
+override-dependencies = [
+    # moodlepy<=0.24.1 pins attrs<23.0.0, but trio>=0.26.0 requires attrs>=23.2.0.
+    # attrs 23.x is backward-compatible; moodlepy works fine at runtime with it.
+    "attrs>=23.2.0",
+]
+# trio 0.26+ (Python 3.13 compatible) is not yet on the Aliyun mirror.
+# Mark PyPI as explicit so it is used only for packages listed in [tool.uv.sources].
+[[tool.uv.index]]
+name = "pypi"
+url = "https://pypi.org/simple"
+explicit = true
+
 [[tool.uv.index]]
 url = "https://mirrors.aliyun.com/pypi/simple"
+
+[tool.uv.sources]
+trio = [{ index = "pypi" }]
 
 [tool.setuptools]
 packages = [
