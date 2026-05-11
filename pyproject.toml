@@ -7,6 +7,10 @@ license-files = ["LICENSE"]
 readme = "README.md"
 requires-python = ">=3.13,<3.15"
 dependencies = [
+    # discord-py==2.3.2 unconditionally imports audioop in discord/player.py at module-
+    # load time. audioop was removed from the CPython stdlib in Python 3.13 (PEP 594),
+    # so any import of the discord package raises ImportError on Python 3.13 — even in
+    # tests that never use voice features. audioop-lts provides the module as a backport.
     "audioop-lts>=0.2.1",
     "aiosmtplib>=5.0.0",
     "akshare>=1.15.78,<2.0.0",
@@ -186,8 +190,11 @@ constraint-dependencies = [
     # CVE-2026-30922: Denial of Service via unbounded recursion in ASN.1 decoding (CVSS 7.5 HIGH)
     # pyasn1 < 0.6.3 is vulnerable; pulled in transitively via google-auth / rsa / pyasn1-modules
     "pyasn1>=0.6.3",
-    # Python 3.13: pathlib.Path.parser became a module (not callable); trio<0.26 crashes on import
-    # pulled in transitively via selenium-wire -> trio-websocket -> trio
+    # Python 3.13 added pathlib.PurePath.parser as a public class attribute holding
+    # the posixpath/ntpath module. trio<0.26 introspects all Path class attributes to
+    # generate async forwards and raises TypeError on any non-callable attribute it
+    # encounters (fixed in trio 0.26 by skipping non-callables). Pulled in transitively
+    # via selenium-wire -> trio-websocket -> trio.
     "trio>=0.26.0",
 ]
 override-dependencies = [
