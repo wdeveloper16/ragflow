@@ -25,6 +25,7 @@ import json
 import logging
 import time
 from functools import partial, wraps
+from typing import Set
 
 import jwt
 from quart import Response, jsonify, request
@@ -66,6 +67,9 @@ from peewee import MySQLDatabase, PostgresqlDatabase
 from rag.flow.pipeline import Pipeline
 from rag.nlp import search
 from rag.utils.redis_conn import REDIS_CONN
+
+# Keeps strong references to fire-and-forget tasks so they are not GC'd before completion.
+_background_tasks: Set[asyncio.Task] = set()
 
 
 def _require_canvas_access_sync(func):
@@ -1703,7 +1707,9 @@ async def webhook(agent_id: str):
                     except Exception:
                         logging.exception("Failed to append webhook trace")
 
-        asyncio.create_task(background_run())
+        task = asyncio.create_task(background_run())
+        _background_tasks.add(task)
+        task.add_done_callback(_background_tasks.discard)
         return resp
     else:
         async def sse():

@@ -15,6 +15,7 @@
 #
 import asyncio
 import logging
+from typing import Set
 
 from api.apps import current_user, login_required
 from api.db import UserTenantRole
@@ -32,6 +33,9 @@ from common import settings
 from common.constants import RetCode, StatusEnum
 from common.misc_utils import get_uuid
 from common.time_utils import delta_seconds
+
+# Keeps strong references to fire-and-forget tasks so they are not GC'd before completion.
+_background_tasks: Set[asyncio.Task] = set()
 
 
 @manager.route("/tenants/<tenant_id>/users", methods=["GET"])  # noqa: F821
@@ -97,7 +101,7 @@ async def create(tenant_id):
         if user:
             user_name = user.nickname
 
-        asyncio.create_task(
+        task = asyncio.create_task(
             send_invite_email(
                 to_email=invite_user_email,
                 invite_url=settings.MAIL_FRONTEND_URL,
@@ -105,6 +109,8 @@ async def create(tenant_id):
                 inviter=user_name or current_user.email,
             )
         )
+        _background_tasks.add(task)
+        task.add_done_callback(_background_tasks.discard)
     except Exception as exc:
         logging.exception(f"Failed to send invite email to {invite_user_email}: {exc}")
         return get_json_result(

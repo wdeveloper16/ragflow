@@ -733,9 +733,9 @@ class LocalLLM(Base):
         from rag.svr.jina_server import Generation
 
         answer = ""
+        loop = asyncio.new_event_loop()
         try:
             res = self.client.stream_doc(on=endpoint, inputs=prompt, return_type=Generation)
-            loop = asyncio.get_event_loop()
             try:
                 while True:
                     answer = loop.run_until_complete(res.__anext__()).text
@@ -744,6 +744,8 @@ class LocalLLM(Base):
                 pass
         except Exception as e:
             yield answer + "\n**ERROR**: " + str(e)
+        finally:
+            loop.close()
         yield num_tokens_from_string(answer)
 
     def chat(self, system, history, gen_conf=None, **kwargs):
