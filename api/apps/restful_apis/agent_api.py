@@ -805,13 +805,15 @@ async def test_db_connection():
                 http_scheme=http_scheme,
                 auth=auth,
             )
-            cur = conn.cursor()
             try:
-                cur.execute("SELECT 1")
-                cur.fetchall()
+                cur = conn.cursor()
+                try:
+                    cur.execute("SELECT 1")
+                    cur.fetchall()
+                finally:
+                    cur.close()
             finally:
-                cur.close()
-            conn.close()
+                conn.close()
         else:
             return server_error_response("Unsupported database type.")
 
