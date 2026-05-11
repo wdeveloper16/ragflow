@@ -101,6 +101,15 @@ async def create(tenant_id):
         if user:
             user_name = user.nickname
 
+        def _on_invite_email_done(done_task: asyncio.Task) -> None:
+            _background_tasks.discard(done_task)
+            try:
+                done_task.result()
+            except asyncio.CancelledError:
+                logging.warning("Invite email task cancelled: tenant_id=%s to=%s", tenant_id, invite_user_email)
+            except Exception:
+                logging.exception("Invite email task failed: tenant_id=%s to=%s", tenant_id, invite_user_email)
+
         task = asyncio.create_task(
             send_invite_email(
                 to_email=invite_user_email,
@@ -110,7 +119,7 @@ async def create(tenant_id):
             )
         )
         _background_tasks.add(task)
-        task.add_done_callback(_background_tasks.discard)
+        task.add_done_callback(_on_invite_email_done)
     except Exception as exc:
         logging.exception(f"Failed to send invite email to {invite_user_email}: {exc}")
         return get_json_result(
