@@ -365,3 +365,6 @@ def _db_close(exception):
     if exception:
         logging.exception(f"Request failed: {exception}")
     close_connection()
+    # Also clean up the SQLAlchemy scoped session for this thread/request.
+    from api.db.sqlalchemy_engine import close_db_session
+    close_db_session(exception)
