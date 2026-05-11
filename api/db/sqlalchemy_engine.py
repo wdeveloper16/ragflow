@@ -41,7 +41,7 @@ from contextlib import contextmanager
 
 from sqlalchemy import create_engine, event, text
 from sqlalchemy.exc import DBAPIError, OperationalError
-from sqlalchemy.orm import DeclarativeBase, scoped_session, sessionmaker
+from sqlalchemy.orm import DeclarativeBase, Session as SASession, scoped_session, sessionmaker
 
 from common import settings
 
@@ -58,10 +58,11 @@ def _build_database_url() -> str:
     db_type = settings.DATABASE_TYPE.lower()
 
     host = cfg.get("host", "127.0.0.1")
-    port = cfg.get("port", 3306)
     user = cfg.get("user", "")
     password = cfg.get("password", "")
     name = cfg.get("name", "ragflow")
+    default_port = 5432 if db_type in ("postgres", "postgresql") else 3306
+    port = cfg.get("port", default_port)
 
     if db_type in ("mysql", "mariadb"):
         # pymysql is already a transitive dependency via Peewee
@@ -148,7 +149,7 @@ class Base(DeclarativeBase):
 # ---------------------------------------------------------------------------
 
 @contextmanager
-def get_db_session() -> Generator[None, None, None]:
+def get_db_session() -> Generator[SASession, None, None]:
     """Context manager that yields the thread-local scoped session.
 
     Commits on clean exit, rolls back on exception, and always returns the
